@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CondorEFB v1.7</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0e1117;
+            --panel-bg: #161b22;
+            --panel-secondary: #1f242d;
+            --border-color: #30363d;
+            --accent-blue: #00a8ff;
+            --accent-green: #2ecc71;
+            --accent-warn: #f39c12;
+            --accent-danger: #e74c3c;
+            --text-main: #c9d1d9;
+            --text-dim: #8b949e;
+            --header-bg: #161b22;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Bar */
+        header {
+            background-color: var(--header-bg);
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 10;
+        }
+
+        .brand {
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: 1px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand .version-badge {
+            color: var(--accent-blue);
+            font-size: 11px;
+            background: rgba(0, 168, 255, 0.12);
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 168, 255, 0.4);
+            font-weight: 600;
+        }
+
+        .view-switchers {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-dark);
+            padding: 3px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+
+        .top-controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        /* Storage Meter Component */
+        .storage-meter-container {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            width: 130px;
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+
+        .storage-label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+        }
+
+        .storage-bar-bg {
+            height: 6px;
+            width: 100%;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .storage-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-blue);
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        .btn-action {
+            background-color: var(--accent-blue);
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border: none;
+        }
+
+        .btn-action:hover {
+            opacity: 0.9;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Main Layout */
+        .efb-container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 48px);
+            position: relative;
+        }
+
+        /* Sidebar Container (Collapsible) */
+        .sidebar-container {
+            display: flex;
+            width: 520px;
+            border-right: 1px solid var(--border-color);
+            background-color: var(--panel-bg);
+            transition: margin-left 0.25s ease;
+        }
+
+        .sidebar-container.collapsed {
+            margin-left: -520px;
+        }
+
+        /* Column 1: Folders */
+        .folders-column {
+            width: 240px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .column-header {
+            padding: 10px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .search-box {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-box input {
+            width: 100%;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .category-section-header {
+            padding: 8px 12px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-blue);
+            background: rgba(0, 168, 255, 0.08);
+            border-bottom: 1px solid var(--border-color);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .folders-scroll-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .folder-card {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.15s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .folder-card:hover {
+            background: var(--panel-secondary);
+        }
+
+        .folder-card.active {
+            background: var(--panel-secondary);
+            border-left: 4px solid var(--accent-blue);
+        }
+
+        .folder-card .folder-header-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            font-size: 13px;
+            color: #fff;
+        }
+
+        .folder-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 11px;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .icon-btn:hover {
+            color: var(--accent-blue);
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Column 2: PDF Charts List */
+        .plates-column {
+            width: 280px;
+            background-color: var(--panel-secondary);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .plates-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .plate-card {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .plate-card:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .plate-card.active {
+            background: rgba(0, 168, 255, 0.15);
+            color: #fff;
+            border-right: 3px solid var(--accent-blue);
+        }
+
+        .plate-card .plate-title-text {
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: var(--border-color);
+            color: var(--text-dim);
+            font-weight: normal;
+        }
+
+        .badge.active {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+
+        /* Viewer Section */
+        main {
+            flex: 1;
+            background-color: #050607;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .viewer-toolbar {
+            height: 44px;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+        }
+
+        .plate-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 240px;
+        }
+
+        .page-controls, .zoom-controls {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .page-input {
+            width: 40px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            text-align: center;
+            font-size: 12px;
+            padding: 3px;
+            border-radius: 4px;
+        }
+
+        .page-input:focus {
+            border-color: var(--accent-blue);
+            outline: none;
+        }
+
+        .btn-tool {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            min-width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 0 8px;
+        }
+
+        .btn-tool:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .canvas-container {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+        }
+
+        canvas {
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.9);
+            border-radius: 4px;
+        }
+
+        .empty-state {
+            margin: auto;
+            text-align: center;
+            color: var(--text-dim);
+        }
+
+        .empty-state h3 {
+            color: var(--text-main);
+            margin-bottom: 6px;
+        }
+
+        /* Web Map Iframe Frame */
+        #webMapFrame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
+        }
+
+        /* Night Mode */
+        .night-mode canvas {
+            filter: invert(0.9) hue-rotate(180deg) contrast(1.2);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            CondorEFB <span class="version-badge">v1.7</span>
+        </div>
+
+        <div class="view-switchers">
+            <button class="tab-btn active" id="tabChartsView">📄 Charts & Docs</button>
+            <button class="tab-btn" id="tabMapView">🗺️ KTO Map Web</button>
+        </div>
+
+        <div class="top-controls">
+            <div class="storage-meter-container" title="IndexedDB Usage">
+                <div class="storage-label">
+                    <span>STORAGE</span>
+                    <span id="storageText">0.0 MB</span>
+                </div>
+                <div class="storage-bar-bg">
+                    <div class="storage-bar-fill" id="storageBarFill"></div>
+                </div>
+            </div>
+
+            <button class="btn-tool" id="toggleSidebarBtn" title="Toggle Sidebar Navigation">◄ Hide Menu</button>
+            <button class="btn-tool" id="nightToggle" title="Toggle Night Vision Mode">🌙 Night Mode</button>
+        </div>
+    </header>
+
+    <div class="efb-container">
+        <div class="sidebar-container" id="sidebarContainer">
+            <div class="folders-column">
+                <div class="column-header">
+                    <span>Folders</span>
+                    <button class="btn-action" id="createUserFolderBtn">+ Folder</button>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="folderSearchInput" placeholder="Filter folders...">
+                </div>
+                <div class="folders-scroll-list" id="foldersScrollList">
+                    </div>
+            </div>
+
+            <div class="plates-column">
+                <div class="column-header">
+                    <span id="platesHeaderTitle">Select Folder</span>
+                    <button class="btn-action" id="uploadPdfBtn" style="display:none;">+ Upload PDF</button>
+                </div>
+                <div class="plates-list" id="platesList">
+                    <div style="padding: 16px; font-size: 12px; color: var(--text-dim); text-align: center;">
+                        Select a folder on the left to view charts.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <main>
+            <div class="viewer-toolbar" id="toolbar" style="display: none;">
+                <div class="plate-title" id="plateTitle">No Chart Selected</div>
+
+                <div class="page-controls">
+                    <button class="btn-tool" id="prevPageBtn">◄</button>
+                    <span style="font-size: 12px; color: var(--text-dim);">Page</span>
+                    <input type="number" id="pageNumberInput" class="page-input" value="1" min="1">
+                    <span id="totalPagesText" style="font-size: 12px; color: var(--text-dim);">/ 1</span>
+                    <button class="btn-tool" id="nextPageBtn">►</button>
+                </div>
+
+                <div class="zoom-controls">
+                    <button class="btn-tool" id="zoomOut">-</button>
+                    <span id="zoomLevel" style="font-size: 12px; width: 45px; text-align: center;">120%</span>
+                    <button class="btn-tool" id="zoomIn">+</button>
+                    <button class="btn-tool" id="deletePlate" title="Delete Chart" style="color: #ff5555; margin-left: 10px;">✕ Delete</button>
+                </div>
+            </div>
+
+            <div class="canvas-container" id="canvasContainer">
+                <div class="empty-state" id="emptyState">
+                    <h3>No Chart Selected</h3>
+                    <p>Select a folder on the left, then click an approach chart to open.</p>
+                </div>
+                <canvas id="pdfCanvas" style="display: none;"></canvas>
+            </div>
+
+            <iframe id="webMapFrame" src="https://maps.falcon-bms.com/01_KTO_Interactive_Map/index.html"></iframe>
+        </main>
+    </div>
+
+    <input type="file" id="fileInput" accept="application/pdf" multiple>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+            // --- IndexedDB Storage Engine ---
+            const DB_NAME = 'CondorEFB_DB';
+            const DB_VERSION = 2;
+            let db = null;
+
+            function initDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(DB_NAME, DB_VERSION);
+                    request.onupgradeneeded = (e) => {
+                        const database = e.target.result;
+                        if (!database.objectStoreNames.contains('folders')) {
+                            database.createObjectStore('folders', { keyPath: 'id' });
+                        }
+                        if (!database.objectStoreNames.contains('plates')) {
+                            const plateStore = database.createObjectStore('plates', { keyPath: 'id' });
+                            plateStore.createIndex('folderId', 'folderId', { unique: false });
+                        }
+                    };
+                    request.onsuccess = (e) => {
+                        db = e.target.result;
+                        resolve(db);
+                    };
+                    request.onerror = (e) => reject(e);
+                });
+            }
+
+            function dbGetAll(storeName) {
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(storeName, 'readonly');
+                    const store = tx.objectStore(storeName);
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = (e) => reject(e);
+                });
+            }
+
+            function dbPut(storeName, item) {
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(storeName, 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    const request = store.put(item);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = (e) => reject(e);
+                });
+            }
+
+            function dbDelete(storeName, id) {
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(storeName, 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    const request = store.delete(id);
+                    request.onsuccess = () => resolve();
+                    request.onerror = (e) => reject(e);
+                });
+            }
+
+            // State Variables
+            let database = [];
+            let userFolders = [];
+            let selectedFolder = null;
+            let activePlateId = null;
+            let currentPdf = null;
+            let currentPageNum = 1;
+            let totalPages = 1;
+            let currentScale = 1.2;
+            let currentRenderTask = null;
+
+            // Elements
+            const sidebarContainer = document.getElementById('sidebarContainer');
+            const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+            const foldersScrollList = document.getElementById('foldersScrollList');
+            const folderSearchInput = document.getElementById('folderSearchInput');
+            const createUserFolderBtn = document.getElementById('createUserFolderBtn');
+            
+            const platesList = document.getElementById('platesList');
+            const platesHeaderTitle = document.getElementById('platesHeaderTitle');
+            const uploadPdfBtn = document.getElementById('uploadPdfBtn');
+            const fileInput = document.getElementById('fileInput');
+
+            const canvas = document.getElementById('pdfCanvas');
+            const ctx = canvas.getContext('2d');
+            const toolbar = document.getElementById('toolbar');
+            const emptyState = document.getElementById('emptyState');
+            const canvasContainer = document.getElementById('canvasContainer');
+            const webMapFrame = document.getElementById('webMapFrame');
+            const tabChartsView = document.getElementById('tabChartsView');
+            const tabMapView = document.getElementById('tabMapView');
+
+            const plateTitle = document.getElementById('plateTitle');
+            const prevPageBtn = document.getElementById('prevPageBtn');
+            const nextPageBtn = document.getElementById('nextPageBtn');
+            const pageNumberInput = document.getElementById('pageNumberInput');
+            const totalPagesText = document.getElementById('totalPagesText');
+            const zoomInBtn = document.getElementById('zoomIn');
+            const zoomOutBtn = document.getElementById('zoomOut');
+            const zoomLevel = document.getElementById('zoomLevel');
+            const deleteBtn = document.getElementById('deletePlate');
+            const nightToggle = document.getElementById('nightToggle');
+
+            const storageText = document.getElementById('storageText');
+            const storageBarFill = document.getElementById('storageBarFill');
+
+            // View Switcher Tabs Logic
+            tabChartsView.onclick = () => {
+                tabChartsView.classList.add('active');
+                tabMapView.classList.remove('active');
+                webMapFrame.style.display = 'none';
+                canvasContainer.style.display = 'flex';
+                if (activePlateId) toolbar.style.display = 'flex';
+                sidebarContainer.style.display = 'flex';
+            };
+
+            tabMapView.onclick = () => {
+                tabMapView.classList.add('active');
+                tabChartsView.classList.remove('active');
+                canvasContainer.style.display = 'none';
+                toolbar.style.display = 'none';
+                webMapFrame.style.display = 'block';
+            };
+
+            // Toggle Sidebar Navigation
+            toggleSidebarBtn.onclick = () => {
+                sidebarContainer.classList.toggle('collapsed');
+                toggleSidebarBtn.textContent = sidebarContainer.classList.contains('collapsed') ? '► Show Menu' : '◄ Hide Menu';
+            };
+
+            // Storage Usage Meter Tracker
+            async function updateStorageMeter() {
+                if ('storage' in navigator && 'estimate' in navigator.storage) {
+                    const { usage, quota } = await navigator.storage.estimate();
+                    const usageMB = (usage / (1024 * 1024)).toFixed(1);
+                    const quotaMB = (quota / (1024 * 1024)).toFixed(0);
+                    const percentage = Math.min(100, (usage / quota) * 100);
+
+                    storageText.textContent = `${usageMB} MB / ${quotaMB} MB`;
+                    storageBarFill.style.width = `${Math.max(percentage, 2)}%`;
+
+                    if (percentage > 85) storageBarFill.style.backgroundColor = 'var(--accent-danger)';
+                    else if (percentage > 65) storageBarFill.style.backgroundColor = 'var(--accent-warn)';
+                    else storageBarFill.style.backgroundColor = 'var(--accent-blue)';
+                }
+            }
+
+            // Initialize App
+            async function initApp() {
+                await initDB();
+                userFolders = await dbGetAll('folders');
+                database = await dbGetAll('plates');
+                renderLeftSidebar();
+                updateStorageMeter();
+            }
+
+            initApp();
+
+            // Create Folder with Category Prompt
+            createUserFolderBtn.onclick = async () => {
+                const folderName = prompt('Enter Folder Name (e.g. Checklists, RKJK - Kunsan):', '');
+                if (!folderName || folderName.trim() === '') return;
+
+                const categoryChoice = prompt('Type 1 for "Documents" or 2 for "AIP (Airport Charts)":', '2');
+                const category = categoryChoice === '1' ? 'documents' : 'aip';
+
+                const newFolder = { 
+                    id: 'uf_' + Date.now(), 
+                    name: folderName.trim(),
+                    category: category
+                };
+                
+                userFolders.push(newFolder);
+                await dbPut('folders', newFolder);
+                renderLeftSidebar(folderSearchInput.value);
+                selectFolder(newFolder);
+            };
+
+            // Render Left Sidebar split by Categories
+            function renderLeftSidebar(filterText = '') {
+                foldersScrollList.innerHTML = '';
+                const term = filterText.toLowerCase();
+                const filteredFolders = userFolders.filter(f => f.name.toLowerCase().includes(term));
+
+                if (filteredFolders.length === 0) {
+                    const emptyNotice = document.createElement('div');
+                    emptyNotice.style.cssText = 'padding: 16px; font-size: 11px; color: var(--text-dim); text-align: center;';
+                    emptyNotice.innerHTML = filterText 
+                        ? 'No matching folders found.' 
+                        : 'No folders yet.<br><br>Click <strong>"+ Folder"</strong> to create a Document or AIP Chart folder.';
+                    foldersScrollList.appendChild(emptyNotice);
+                    return;
+                }
+
+                const docFolders = filteredFolders.filter(f => f.category === 'documents');
+                const aipFolders = filteredFolders.filter(f => f.category !== 'documents');
+
+                if (docFolders.length > 0) {
+                    const catHeader = document.createElement('div');
+                    catHeader.className = 'category-section-header';
+                    catHeader.textContent = '📚 Documents';
+                    foldersScrollList.appendChild(catHeader);
+                    docFolders.forEach(folder => renderFolderItem(folder));
+                }
+
+                if (aipFolders.length > 0) {
+                    const catHeader = document.createElement('div');
+                    catHeader.className = 'category-section-header';
+                    catHeader.textContent = '✈️ AIP Charts';
+                    foldersScrollList.appendChild(catHeader);
+                    aipFolders.forEach(folder => renderFolderItem(folder));
+                }
+            }
+
+            function renderFolderItem(folder) {
+                const count = database.filter(p => p.folderId === folder.id).length;
+                const card = document.createElement('div');
+                card.className = `folder-card ${selectedFolder && selectedFolder.id === folder.id ? 'active' : ''}`;
+                
+                card.innerHTML = `
+                    <div class="folder-header-line">
+                        <span>📁 ${folder.name}</span>
+                        <div class="folder-actions">
+                            <span class="badge ${count > 0 ? 'active' : ''}">${count}</span>
+                            <button class="icon-btn edit-btn" title="Rename">✏️</button>
+                            <button class="icon-btn del-btn" title="Delete" style="color:#ff5555;">✕</button>
+                        </div>
+                    </div>
+                `;
+
+                // Rename Action
+                card.querySelector('.edit-btn').onclick = async (e) => {
+                    e.stopPropagation();
+                    const newName = prompt('Rename folder:', folder.name);
+                    if (newName && newName.trim() !== '') {
+                        folder.name = newName.trim();
+                        await dbPut('folders', folder);
+                        renderLeftSidebar(folderSearchInput.value);
+                        if (selectedFolder && selectedFolder.id === folder.id) selectFolder(folder);
+                    }
+                };
+
+                // Delete Action
+                card.querySelector('.del-btn').onclick = async (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete folder "${folder.name}" and all stored PDFs?`)) {
+                        userFolders = userFolders.filter(f => f.id !== folder.id);
+                        await dbDelete('folders', folder.id);
+
+                        const platesToDelete = database.filter(p => p.folderId === folder.id);
+                        for (let p of platesToDelete) {
+                            await dbDelete('plates', p.id);
+                        }
+                        database = database.filter(p => p.folderId !== folder.id);
+
+                        if (selectedFolder && selectedFolder.id === folder.id) {
+                            selectedFolder = null;
+                            activePlateId = null;
+                            currentPdf = null;
+                            canvas.style.display = 'none';
+                            toolbar.style.display = 'none';
+                            emptyState.style.display = 'block';
+                        }
+                        renderLeftSidebar(folderSearchInput.value);
+                        renderPlatesColumn();
+                        updateStorageMeter();
+                    }
+                };
+
+                card.onclick = () => selectFolder(folder);
+                foldersScrollList.appendChild(card);
+            }
+
+            // Select Folder
+            function selectFolder(folder) {
+                selectedFolder = folder;
+                uploadPdfBtn.style.display = 'inline-block';
+                renderLeftSidebar(folderSearchInput.value);
+                renderPlatesColumn();
+            }
+
+            // Render PDF List
+            function renderPlatesColumn() {
+                if (!selectedFolder) {
+                    platesHeaderTitle.textContent = 'Select Folder';
+                    uploadPdfBtn.style.display = 'none';
+                    platesList.innerHTML = `<div style="padding: 16px; font-size: 12px; color: var(--text-dim); text-align: center;">Select a folder on the left.</div>`;
+                    return;
+                }
+
+                platesHeaderTitle.textContent = selectedFolder.name;
+                platesList.innerHTML = '';
+
+                const folderPlates = database.filter(p => p.folderId === selectedFolder.id);
+
+                if (folderPlates.length === 0) {
+                    platesList.innerHTML = `
+                        <div style="padding: 16px; font-size: 12px; color: var(--text-dim); text-align: center;">
+                            No PDFs in <strong>${selectedFolder.name}</strong>.<br><br>
+                            Click <strong>"+ Upload PDF"</strong> above to add files.
+                        </div>
+                    `;
+                    return;
+                }
+
+                folderPlates.forEach(plate => {
+                    const card = document.createElement('div');
+                    card.className = `plate-card ${activePlateId === plate.id ? 'active' : ''}`;
+                    card.innerHTML = `<div class="plate-title-text">${plate.name}</div>`;
+                    card.onclick = () => loadPlate(plate);
+                    platesList.appendChild(card);
+                });
+            }
+
+            // File Upload Listener
+            uploadPdfBtn.onclick = () => selectedFolder && fileInput.click();
+
+            fileInput.addEventListener('change', async (e) => {
+                const files = e.target.files;
+                if (!files || files.length === 0) return;
+
+                for (let file of files) {
+                    if (file.type === 'application/pdf') {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const plateRecord = {
+                            id: Date.now() + Math.random().toString(36).substr(2, 9),
+                            folderId: selectedFolder.id,
+                            name: file.name.replace(/\.pdf$/i, ''),
+                            fileBuffer: arrayBuffer
+                        };
+
+                        database.push(plateRecord);
+                        await dbPut('plates', plateRecord);
+                    }
+                }
+                renderLeftSidebar(folderSearchInput.value);
+                renderPlatesColumn();
+                updateStorageMeter();
+                fileInput.value = '';
+            });
+
+            folderSearchInput.addEventListener('input', (e) => renderLeftSidebar(e.target.value));
+
+            // Load Selected PDF
+            async function loadPlate(plate) {
+                activePlateId = plate.id;
+                renderPlatesColumn();
+
+                plateTitle.textContent = `${selectedFolder.name} — ${plate.name}`;
+                toolbar.style.display = 'flex';
+                emptyState.style.display = 'none';
+                canvas.style.display = 'block';
+
+                // Cancel running render operation if rapidly switching PDFs
+                if (currentRenderTask) {
+                    currentRenderTask.cancel();
+                    currentRenderTask = null;
+                }
+
+                // Reset canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                currentPageNum = 1;
+
+                const loadingTask = pdfjsLib.getDocument({ data: plate.fileBuffer });
+                currentPdf = await loadingTask.promise;
+                totalPages = currentPdf.numPages;
+                
+                totalPagesText.textContent = `/ ${totalPages}`;
+                pageNumberInput.max = totalPages;
+                pageNumberInput.value = currentPageNum;
+
+                renderPage(currentPageNum);
+            }
+
+            // Render PDF Page
+            async function renderPage(pageNum) {
+                if (!currentPdf) return;
+
+                if (currentRenderTask) {
+                    currentRenderTask.cancel();
+                    currentRenderTask = null;
+                }
+
+                const page = await currentPdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: currentScale });
+                
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+
+                try {
+                    currentRenderTask = page.render(renderContext);
+                    await currentRenderTask.promise;
+                    currentRenderTask = null;
+                } catch (err) {
+                    if (err.name !== 'RenderingCancelledException') console.error(err);
+                }
+
+                zoomLevel.textContent = `${Math.round(currentScale * 100)}%`;
+            }
+
+            // Page Navigation Actions
+            prevPageBtn.onclick = () => {
+                if (currentPageNum > 1) {
+                    currentPageNum--;
+                    pageNumberInput.value = currentPageNum;
+                    renderPage(currentPageNum);
+                }
+            };
+
+            nextPageBtn.onclick = () => {
+                if (currentPageNum < totalPages) {
+                    currentPageNum++;
+                    pageNumberInput.value = currentPageNum;
+                    renderPage(currentPageNum);
+                }
+            };
+
+            pageNumberInput.addEventListener('change', (e) => {
+                let targetPage = parseInt(e.target.value, 10);
+                if (isNaN(targetPage) || targetPage < 1) targetPage = 1;
+                if (targetPage > totalPages) targetPage = totalPages;
+                
+                currentPageNum = targetPage;
+                e.target.value = currentPageNum;
+                renderPage(currentPageNum);
+            });
+
+            // Zoom Controls
+            zoomInBtn.onclick = () => { currentScale += 0.2; renderPage(currentPageNum); };
+            zoomOutBtn.onclick = () => { if (currentScale > 0.4) { currentScale -= 0.2; renderPage(currentPageNum); } };
+
+            // Delete Active Chart
+            deleteBtn.onclick = async () => {
+                if (!activePlateId) return;
+                await dbDelete('plates', activePlateId);
+                database = database.filter(p => p.id !== activePlateId);
+                
+                activePlateId = null;
+                currentPdf = null;
+                canvas.style.display = 'none';
+                toolbar.style.display = 'none';
+                emptyState.style.display = 'block';
+                
+                renderLeftSidebar(folderSearchInput.value);
+                renderPlatesColumn();
+                updateStorageMeter();
+            };
+
+            // Night Mode Toggle
+            nightToggle.onclick = () => document.body.classList.toggle('night-mode');
+        });
+    </script>
+</body>
+</html>
