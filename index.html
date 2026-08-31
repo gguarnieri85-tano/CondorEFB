@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CondorEFB v1.7</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CondorEFB v1.9</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         :root {
@@ -26,6 +26,7 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -44,29 +45,49 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 16px;
+            padding: 0 12px;
             border-bottom: 1px solid var(--border-color);
             z-index: 10;
         }
 
         .brand {
             font-weight: 700;
-            font-size: 16px;
-            letter-spacing: 1px;
+            font-size: 15px;
+            letter-spacing: 0.5px;
             color: #fff;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         .brand .version-badge {
             color: var(--accent-blue);
-            font-size: 11px;
+            font-size: 10px;
             background: rgba(0, 168, 255, 0.12);
-            padding: 3px 8px;
+            padding: 2px 6px;
             border-radius: 4px;
             border: 1px solid rgba(0, 168, 255, 0.4);
             font-weight: 600;
+        }
+
+        /* Sim Time Clock Display */
+        .sim-clock-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 168, 255, 0.1);
+            border: 1px solid var(--accent-blue);
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .sim-clock-time {
+            font-family: "Courier New", Courier, monospace;
+            font-weight: 700;
+            font-size: 14px;
+            color: #fff;
+            letter-spacing: 1px;
         }
 
         .view-switchers {
@@ -82,7 +103,7 @@
             background: none;
             border: none;
             color: var(--text-dim);
-            padding: 4px 12px;
+            padding: 4px 10px;
             font-size: 11px;
             font-weight: 600;
             border-radius: 4px;
@@ -96,7 +117,7 @@
 
         .top-controls {
             display: flex;
-            gap: 16px;
+            gap: 10px;
             align-items: center;
         }
 
@@ -105,8 +126,8 @@
             display: flex;
             flex-direction: column;
             gap: 3px;
-            width: 130px;
-            font-size: 10px;
+            width: 110px;
+            font-size: 9px;
             color: var(--text-dim);
         }
 
@@ -117,7 +138,7 @@
         }
 
         .storage-bar-bg {
-            height: 6px;
+            height: 5px;
             width: 100%;
             background: var(--bg-dark);
             border: 1px solid var(--border-color);
@@ -146,13 +167,22 @@
             border: none;
         }
 
-        .btn-action:hover {
-            opacity: 0.9;
+        .btn-action:hover { opacity: 0.9; }
+
+        .btn-secondary {
+            background-color: var(--panel-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            font-weight: 600;
         }
 
-        input[type="file"] {
-            display: none;
-        }
+        .btn-secondary:hover { border-color: var(--accent-blue); color: #fff; }
+
+        input[type="file"] { display: none; }
 
         /* Main Layout */
         .efb-container {
@@ -171,9 +201,7 @@
             transition: margin-left 0.25s ease;
         }
 
-        .sidebar-container.collapsed {
-            margin-left: -520px;
-        }
+        .sidebar-container.collapsed { margin-left: -520px; }
 
         /* Column 1: Folders */
         .folders-column {
@@ -185,7 +213,7 @@
         }
 
         .column-header {
-            padding: 10px 12px;
+            padding: 8px 10px;
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
@@ -196,6 +224,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 4px;
         }
 
         .search-box {
@@ -214,9 +243,7 @@
             outline: none;
         }
 
-        .search-box input:focus {
-            border-color: var(--accent-blue);
-        }
+        .search-box input:focus { border-color: var(--accent-blue); }
 
         .category-section-header {
             padding: 8px 12px;
@@ -233,10 +260,11 @@
         .folders-scroll-list {
             flex: 1;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .folder-card {
-            padding: 10px 12px;
+            padding: 12px 10px;
             border-bottom: 1px solid var(--border-color);
             cursor: pointer;
             transition: background 0.15s ease;
@@ -245,9 +273,7 @@
             gap: 2px;
         }
 
-        .folder-card:hover {
-            background: var(--panel-secondary);
-        }
+        .folder-card:hover { background: var(--panel-secondary); }
 
         .folder-card.active {
             background: var(--panel-secondary);
@@ -266,7 +292,7 @@
         .folder-actions {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
         }
 
         .icon-btn {
@@ -274,8 +300,8 @@
             border: none;
             color: var(--text-dim);
             cursor: pointer;
-            font-size: 11px;
-            padding: 2px 4px;
+            font-size: 12px;
+            padding: 4px 6px;
             border-radius: 3px;
         }
 
@@ -295,6 +321,7 @@
         .plates-list {
             flex: 1;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .plate-card {
@@ -308,9 +335,7 @@
             gap: 4px;
         }
 
-        .plate-card:hover {
-            background: rgba(255, 255, 255, 0.04);
-        }
+        .plate-card:hover { background: rgba(255, 255, 255, 0.04); }
 
         .plate-card.active {
             background: rgba(0, 168, 255, 0.15);
@@ -332,10 +357,7 @@
             font-weight: normal;
         }
 
-        .badge.active {
-            background: var(--accent-blue);
-            color: #fff;
-        }
+        .badge.active { background: var(--accent-blue); color: #fff; }
 
         /* Viewer Section */
         main {
@@ -353,47 +375,42 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 16px;
+            padding: 0 12px;
         }
 
         .plate-title {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             color: #fff;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 240px;
+            max-width: 220px;
         }
 
         .page-controls, .zoom-controls {
             display: flex;
-            gap: 6px;
+            gap: 4px;
             align-items: center;
         }
 
         .page-input {
-            width: 40px;
+            width: 42px;
             background: var(--bg-dark);
             border: 1px solid var(--border-color);
             color: #fff;
             text-align: center;
             font-size: 12px;
-            padding: 3px;
+            padding: 4px 2px;
             border-radius: 4px;
-        }
-
-        .page-input:focus {
-            border-color: var(--accent-blue);
-            outline: none;
         }
 
         .btn-tool {
             background: var(--bg-dark);
             border: 1px solid var(--border-color);
             color: var(--text-main);
-            min-width: 30px;
-            height: 30px;
+            min-width: 32px;
+            height: 32px;
             border-radius: 4px;
             cursor: pointer;
             display: flex;
@@ -404,23 +421,23 @@
             padding: 0 8px;
         }
 
-        .btn-tool:hover {
-            border-color: var(--accent-blue);
-            color: var(--accent-blue);
-        }
+        .btn-tool:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 
         .canvas-container {
             flex: 1;
             overflow: auto;
+            -webkit-overflow-scrolling: touch;
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            padding: 20px;
+            padding: 12px;
         }
 
         canvas {
             box-shadow: 0 0 25px rgba(0, 0, 0, 0.9);
             border-radius: 4px;
+            max-width: 100%;
+            height: auto;
         }
 
         .empty-state {
@@ -429,10 +446,7 @@
             color: var(--text-dim);
         }
 
-        .empty-state h3 {
-            color: var(--text-main);
-            margin-bottom: 6px;
-        }
+        .empty-state h3 { color: var(--text-main); margin-bottom: 6px; }
 
         /* Web Map Iframe Frame */
         #webMapFrame {
@@ -446,18 +460,34 @@
         .night-mode canvas {
             filter: invert(0.9) hue-rotate(180deg) contrast(1.2);
         }
+
+        /* Data Pack Action Tray */
+        .datapack-tray {
+            padding: 8px;
+            background: var(--panel-bg);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 6px;
+        }
+
+        .datapack-tray button { flex: 1; font-size: 10px; }
     </style>
 </head>
 <body>
 
     <header>
         <div class="brand">
-            CondorEFB <span class="version-badge">v1.7</span>
+            CondorEFB <span class="version-badge">v1.9</span>
+        </div>
+
+        <div class="sim-clock-container" id="setSimTimeBtn" title="Click to set Sim Time offset">
+            <span style="font-size:11px;">⏱️ SIM</span>
+            <span class="sim-clock-time" id="simClockDisplay">00:00:00</span>
         </div>
 
         <div class="view-switchers">
-            <button class="tab-btn active" id="tabChartsView">📄 Charts & Docs</button>
-            <button class="tab-btn" id="tabMapView">🗺️ KTO Map Web</button>
+            <button class="tab-btn active" id="tabChartsView">📄 Charts</button>
+            <button class="tab-btn" id="tabMapView">🗺️ KTO Map</button>
         </div>
 
         <div class="top-controls">
@@ -471,8 +501,8 @@
                 </div>
             </div>
 
-            <button class="btn-tool" id="toggleSidebarBtn" title="Toggle Sidebar Navigation">◄ Hide Menu</button>
-            <button class="btn-tool" id="nightToggle" title="Toggle Night Vision Mode">🌙 Night Mode</button>
+            <button class="btn-tool" id="toggleSidebarBtn" title="Toggle Navigation Menu">◄ Hide</button>
+            <button class="btn-tool" id="nightToggle" title="Toggle Night Vision Mode">🌙</button>
         </div>
     </header>
 
@@ -488,12 +518,17 @@
                 </div>
                 <div class="folders-scroll-list" id="foldersScrollList">
                     </div>
+                
+                <div class="datapack-tray">
+                    <button class="btn-secondary" id="exportDataPackBtn" title="Download EFB Data Pack Backup">📥 Export Pack</button>
+                    <button class="btn-secondary" id="importDataPackBtn" title="Restore Data Pack Backup">📤 Import Pack</button>
+                </div>
             </div>
 
             <div class="plates-column">
                 <div class="column-header">
                     <span id="platesHeaderTitle">Select Folder</span>
-                    <button class="btn-action" id="uploadPdfBtn" style="display:none;">+ Upload PDF</button>
+                    <button class="btn-action" id="uploadPdfBtn" style="display:none;">+ PDF</button>
                 </div>
                 <div class="plates-list" id="platesList">
                     <div style="padding: 16px; font-size: 12px; color: var(--text-dim); text-align: center;">
@@ -509,17 +544,16 @@
 
                 <div class="page-controls">
                     <button class="btn-tool" id="prevPageBtn">◄</button>
-                    <span style="font-size: 12px; color: var(--text-dim);">Page</span>
                     <input type="number" id="pageNumberInput" class="page-input" value="1" min="1">
-                    <span id="totalPagesText" style="font-size: 12px; color: var(--text-dim);">/ 1</span>
+                    <span id="totalPagesText" style="font-size: 11px; color: var(--text-dim);">/ 1</span>
                     <button class="btn-tool" id="nextPageBtn">►</button>
                 </div>
 
                 <div class="zoom-controls">
                     <button class="btn-tool" id="zoomOut">-</button>
-                    <span id="zoomLevel" style="font-size: 12px; width: 45px; text-align: center;">120%</span>
+                    <span id="zoomLevel" style="font-size: 11px; width: 36px; text-align: center;">120%</span>
                     <button class="btn-tool" id="zoomIn">+</button>
-                    <button class="btn-tool" id="deletePlate" title="Delete Chart" style="color: #ff5555; margin-left: 10px;">✕ Delete</button>
+                    <button class="btn-tool" id="deletePlate" title="Delete Chart" style="color: #ff5555; margin-left: 6px;">✕</button>
                 </div>
             </div>
 
@@ -536,6 +570,7 @@
     </div>
 
     <input type="file" id="fileInput" accept="application/pdf" multiple>
+    <input type="file" id="dataPackFileInput" accept=".condorefb,.json">
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -608,6 +643,9 @@
             let currentScale = 1.2;
             let currentRenderTask = null;
 
+            // Sim Clock State
+            let simTimeOffsetMs = 0;
+
             // Elements
             const sidebarContainer = document.getElementById('sidebarContainer');
             const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
@@ -643,6 +681,150 @@
             const storageText = document.getElementById('storageText');
             const storageBarFill = document.getElementById('storageBarFill');
 
+            const simClockDisplay = document.getElementById('simClockDisplay');
+            const setSimTimeBtn = document.getElementById('setSimTimeBtn');
+            const exportDataPackBtn = document.getElementById('exportDataPackBtn');
+            const importDataPackBtn = document.getElementById('importDataPackBtn');
+            const dataPackFileInput = document.getElementById('dataPackFileInput');
+
+            // --- Sim Time Clock Engine ---
+            function updateSimClock() {
+                const now = new Date(Date.now() + simTimeOffsetMs);
+                const h = String(now.getUTCHours()).padStart(2, '0');
+                const m = String(now.getUTCMinutes()).padStart(2, '0');
+                const s = String(now.getUTCSeconds()).padStart(2, '0');
+                simClockDisplay.textContent = `${h}:${m}:${s}`;
+            }
+
+            setInterval(updateSimClock, 1000);
+            updateSimClock();
+
+            setSimTimeBtn.onclick = () => {
+                const timeInput = prompt('Set Simulator Starting Time (HH:MM or HH:MM:SS in UTC):', '14:30');
+                if (timeInput) {
+                    const parts = timeInput.split(':').map(n => parseInt(n, 10));
+                    if (!isNaN(parts[0]) && !isNaN(parts[1])) {
+                        const targetDate = new Date();
+                        targetDate.setUTCHours(parts[0], parts[1], parts[2] || 0, 0);
+                        simTimeOffsetMs = targetDate.getTime() - Date.now();
+                        updateSimClock();
+                    }
+                }
+            };
+
+            // Helper to convert ArrayBuffer to Chunked Base64 String (prevents stack overflow)
+            function arrayBufferToBase64(buffer) {
+                let binary = '';
+                const bytes = new Uint8Array(buffer);
+                const len = bytes.byteLength;
+                const chunkSize = 0x8000;
+                for (let i = 0; i < len; i += chunkSize) {
+                    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+                }
+                return window.btoa(binary);
+            }
+
+            // --- Cross-Platform Export Engine ---
+            exportDataPackBtn.onclick = async () => {
+                if (userFolders.length === 0 && database.length === 0) {
+                    alert('No folders or files available to export in Data Pack.');
+                    return;
+                }
+
+                const serializablePlates = database.map(p => ({
+                    id: p.id,
+                    folderId: p.folderId,
+                    name: p.name,
+                    base64Data: arrayBufferToBase64(p.fileBuffer)
+                }));
+
+                const packPayload = {
+                    version: '1.9',
+                    exportDate: new Date().toISOString(),
+                    folders: userFolders,
+                    plates: serializablePlates
+                };
+
+                const jsonStr = JSON.stringify(packPayload);
+                const fileName = `CondorEFB_DataPack_${new Date().toISOString().slice(0, 10)}.condorefb`;
+
+                // iOS / Safari Fallback & Native Browser Trigger
+                try {
+                    const blob = new Blob([jsonStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = fileName;
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 1000);
+                } catch (e) {
+                    // Direct Data URI fallback for web views blocking blob creation
+                    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(jsonStr);
+                    const a = document.createElement('a');
+                    a.href = dataUri;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+            };
+
+            importDataPackBtn.onclick = () => dataPackFileInput.click();
+
+            dataPackFileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const text = await file.text();
+                try {
+                    const pack = JSON.parse(text);
+                    if (!pack.folders || !pack.plates) throw new Error('Invalid format');
+
+                    if (confirm('Importing this Data Pack will add folders and charts to your current EFB. Continue?')) {
+                        for (let f of pack.folders) {
+                            if (!userFolders.some(uf => uf.id === f.id)) {
+                                userFolders.push(f);
+                                await dbPut('folders', f);
+                            }
+                        }
+
+                        for (let p of pack.plates) {
+                            if (!database.some(dp => dp.id === p.id)) {
+                                const binary = atob(p.base64Data);
+                                const bytes = new Uint8Array(binary.length);
+                                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                                
+                                const plateRecord = {
+                                    id: p.id,
+                                    folderId: p.folderId,
+                                    name: p.name,
+                                    fileBuffer: bytes.buffer
+                                };
+
+                                database.push(plateRecord);
+                                await dbPut('plates', plateRecord);
+                            }
+                        }
+
+                        renderLeftSidebar(folderSearchInput.value);
+                        renderPlatesColumn();
+                        updateStorageMeter();
+                        alert('Data Pack successfully imported!');
+                    }
+                } catch (err) {
+                    alert('Failed to parse Data Pack file.');
+                }
+                dataPackFileInput.value = '';
+            });
+
             // View Switcher Tabs Logic
             tabChartsView.onclick = () => {
                 tabChartsView.classList.add('active');
@@ -664,7 +846,7 @@
             // Toggle Sidebar Navigation
             toggleSidebarBtn.onclick = () => {
                 sidebarContainer.classList.toggle('collapsed');
-                toggleSidebarBtn.textContent = sidebarContainer.classList.contains('collapsed') ? '► Show Menu' : '◄ Hide Menu';
+                toggleSidebarBtn.textContent = sidebarContainer.classList.contains('collapsed') ? '► Show' : '◄ Hide';
             };
 
             // Storage Usage Meter Tracker
@@ -836,7 +1018,7 @@
                     platesList.innerHTML = `
                         <div style="padding: 16px; font-size: 12px; color: var(--text-dim); text-align: center;">
                             No PDFs in <strong>${selectedFolder.name}</strong>.<br><br>
-                            Click <strong>"+ Upload PDF"</strong> above to add files.
+                            Click <strong>"+ PDF"</strong> above to add files.
                         </div>
                     `;
                     return;
@@ -890,13 +1072,11 @@
                 emptyState.style.display = 'none';
                 canvas.style.display = 'block';
 
-                // Cancel running render operation if rapidly switching PDFs
                 if (currentRenderTask) {
                     currentRenderTask.cancel();
                     currentRenderTask = null;
                 }
 
-                // Reset canvas
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 currentPageNum = 1;
 
