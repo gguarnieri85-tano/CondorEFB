@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CondorEFB v1.9</title>
+    <title>CondorEFB v2.0 (GitHub Pages Ready)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         :root {
@@ -477,7 +477,7 @@
 
     <header>
         <div class="brand">
-            CondorEFB <span class="version-badge">v1.9</span>
+            CondorEFB <span class="version-badge">v2.0</span>
         </div>
 
         <div class="sim-clock-container" id="setSimTimeBtn" title="Click to set Sim Time offset">
@@ -712,7 +712,7 @@
                 }
             };
 
-            // Helper to convert ArrayBuffer to Chunked Base64 String (prevents stack overflow)
+            // Memory-safe Chunked Base64 Conversion
             function arrayBufferToBase64(buffer) {
                 let binary = '';
                 const bytes = new Uint8Array(buffer);
@@ -724,57 +724,78 @@
                 return window.btoa(binary);
             }
 
-            // --- Cross-Platform Export Engine ---
+            // --- Universal Web & GitHub Pages Export Engine ---
             exportDataPackBtn.onclick = async () => {
                 if (userFolders.length === 0 && database.length === 0) {
                     alert('No folders or files available to export in Data Pack.');
                     return;
                 }
 
-                const serializablePlates = database.map(p => ({
-                    id: p.id,
-                    folderId: p.folderId,
-                    name: p.name,
-                    base64Data: arrayBufferToBase64(p.fileBuffer)
-                }));
+                exportDataPackBtn.textContent = '⏳ Exporting...';
+                
+                setTimeout(async () => {
+                    try {
+                        const serializablePlates = database.map(p => ({
+                            id: p.id,
+                            folderId: p.folderId,
+                            name: p.name,
+                            base64Data: arrayBufferToBase64(p.fileBuffer)
+                        }));
 
-                const packPayload = {
-                    version: '1.9',
-                    exportDate: new Date().toISOString(),
-                    folders: userFolders,
-                    plates: serializablePlates
-                };
+                        const packPayload = {
+                            version: '2.0',
+                            exportDate: new Date().toISOString(),
+                            folders: userFolders,
+                            plates: serializablePlates
+                        };
 
-                const jsonStr = JSON.stringify(packPayload);
-                const fileName = `CondorEFB_DataPack_${new Date().toISOString().slice(0, 10)}.condorefb`;
+                        const jsonStr = JSON.stringify(packPayload);
+                        const fileName = `CondorEFB_DataPack_${new Date().toISOString().slice(0, 10)}.condorefb`;
+                        const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
 
-                // iOS / Safari Fallback & Native Browser Trigger
-                try {
-                    const blob = new Blob([jsonStr], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = fileName;
-                    
-                    document.body.appendChild(a);
-                    a.click();
-                    
-                    setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }, 1000);
-                } catch (e) {
-                    // Direct Data URI fallback for web views blocking blob creation
-                    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(jsonStr);
-                    const a = document.createElement('a');
-                    a.href = dataUri;
-                    a.download = fileName;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }
+                        // 1. Native File System Access API (Works on Chrome/Edge HTTPS hosted on GitHub Pages)
+                        if ('showSaveFilePicker' in window) {
+                            try {
+                                const handle = await window.showSaveFilePicker({
+                                    suggestedName: fileName,
+                                    types: [{
+                                        description: 'CondorEFB Data Pack',
+                                        accept: { 'application/json': ['.condorefb'] },
+                                    }],
+                                });
+                                const writable = await handle.createWritable();
+                                await writable.write(blob);
+                                await writable.close();
+                                exportDataPackBtn.textContent = '📥 Export Pack';
+                                return;
+                            } catch (err) {
+                                if (err.name === 'AbortError') {
+                                    exportDataPackBtn.textContent = '📥 Export Pack';
+                                    return;
+                                }
+                            }
+                        }
+
+                        // 2. Standard Blob Link Trigger with extended revocation (iOS/Safari HTTPS GitHub Pages)
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        a.rel = 'noopener';
+                        document.body.appendChild(a);
+                        a.click();
+
+                        setTimeout(() => {
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        }, 5000);
+
+                    } catch (e) {
+                        alert('Error generating Data Pack export: ' + e.message);
+                    } finally {
+                        exportDataPackBtn.textContent = '📥 Export Pack';
+                    }
+                }, 50);
             };
 
             importDataPackBtn.onclick = () => dataPackFileInput.click();
