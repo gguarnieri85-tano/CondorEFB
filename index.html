@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CondorEFB v2.0 (GitHub Pages Ready)</title>
+    <title>CondorEFB v2.1 (GitHub Pages & iPadOS Ready)</title>
+    <!-- PDF.js CDN for client-side PDF rendering -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         :root {
@@ -477,20 +478,23 @@
 
     <header>
         <div class="brand">
-            CondorEFB <span class="version-badge">v2.0</span>
+            CondorEFB <span class="version-badge">v2.1</span>
         </div>
 
+        <!-- Sim Time Running Clock Display -->
         <div class="sim-clock-container" id="setSimTimeBtn" title="Click to set Sim Time offset">
             <span style="font-size:11px;">⏱️ SIM</span>
             <span class="sim-clock-time" id="simClockDisplay">00:00:00</span>
         </div>
 
+        <!-- View Switcher Tabs -->
         <div class="view-switchers">
             <button class="tab-btn active" id="tabChartsView">📄 Charts</button>
             <button class="tab-btn" id="tabMapView">🗺️ KTO Map</button>
         </div>
 
         <div class="top-controls">
+            <!-- Storage Meter Widget -->
             <div class="storage-meter-container" title="IndexedDB Usage">
                 <div class="storage-label">
                     <span>STORAGE</span>
@@ -507,7 +511,9 @@
     </header>
 
     <div class="efb-container">
+        <!-- Collapsible Navigation Sidebar -->
         <div class="sidebar-container" id="sidebarContainer">
+            <!-- Left Panel: Custom User Folders -->
             <div class="folders-column">
                 <div class="column-header">
                     <span>Folders</span>
@@ -517,14 +523,17 @@
                     <input type="text" id="folderSearchInput" placeholder="Filter folders...">
                 </div>
                 <div class="folders-scroll-list" id="foldersScrollList">
-                    </div>
+                    <!-- Populated dynamically -->
+                </div>
                 
+                <!-- Data Pack Backup Controls -->
                 <div class="datapack-tray">
                     <button class="btn-secondary" id="exportDataPackBtn" title="Download EFB Data Pack Backup">📥 Export Pack</button>
                     <button class="btn-secondary" id="importDataPackBtn" title="Restore Data Pack Backup">📤 Import Pack</button>
                 </div>
             </div>
 
+            <!-- Middle Panel: PDF Approach Charts inside Selected Folder -->
             <div class="plates-column">
                 <div class="column-header">
                     <span id="platesHeaderTitle">Select Folder</span>
@@ -538,10 +547,12 @@
             </div>
         </div>
 
+        <!-- Main PDF Chart Viewer -->
         <main>
             <div class="viewer-toolbar" id="toolbar" style="display: none;">
                 <div class="plate-title" id="plateTitle">No Chart Selected</div>
 
+                <!-- Page Navigation Controls -->
                 <div class="page-controls">
                     <button class="btn-tool" id="prevPageBtn">◄</button>
                     <input type="number" id="pageNumberInput" class="page-input" value="1" min="1">
@@ -549,6 +560,7 @@
                     <button class="btn-tool" id="nextPageBtn">►</button>
                 </div>
 
+                <!-- Zoom Controls -->
                 <div class="zoom-controls">
                     <button class="btn-tool" id="zoomOut">-</button>
                     <span id="zoomLevel" style="font-size: 11px; width: 36px; text-align: center;">120%</span>
@@ -565,12 +577,15 @@
                 <canvas id="pdfCanvas" style="display: none;"></canvas>
             </div>
 
+            <!-- Embedded Interactive Web Map -->
             <iframe id="webMapFrame" src="https://maps.falcon-bms.com/01_KTO_Interactive_Map/index.html"></iframe>
         </main>
     </div>
 
+    <!-- Hidden Inputs -->
     <input type="file" id="fileInput" accept="application/pdf" multiple>
-    <input type="file" id="dataPackFileInput" accept=".condorefb,.json">
+    <!-- Expanded accept string to allow custom .condorefb selection on iPadOS/iOS -->
+    <input type="file" id="dataPackFileInput" accept=".condorefb,.json,application/json,text/plain,*/*">
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -724,7 +739,7 @@
                 return window.btoa(binary);
             }
 
-            // --- Universal Web & GitHub Pages Export Engine ---
+            // --- Universal Export Engine (Patched for Detached ArrayBuffers) ---
             exportDataPackBtn.onclick = async () => {
                 if (userFolders.length === 0 && database.length === 0) {
                     alert('No folders or files available to export in Data Pack.');
@@ -735,15 +750,27 @@
                 
                 setTimeout(async () => {
                     try {
-                        const serializablePlates = database.map(p => ({
-                            id: p.id,
-                            folderId: p.folderId,
-                            name: p.name,
-                            base64Data: arrayBufferToBase64(p.fileBuffer)
-                        }));
+                        // Fetch fresh, untouched ArrayBuffers straight from IndexedDB
+                        const freshPlates = await dbGetAll('plates');
+
+                        const serializablePlates = freshPlates.map(p => {
+                            if (!p.fileBuffer || p.fileBuffer.byteLength === 0) {
+                                throw new Error(`Chart "${p.name}" contains detached or corrupted buffer data.`);
+                            }
+                            
+                            // Clone buffer using .slice(0) to isolate binary memory
+                            const safeBuffer = p.fileBuffer.slice(0);
+
+                            return {
+                                id: p.id,
+                                folderId: p.folderId,
+                                name: p.name,
+                                base64Data: arrayBufferToBase64(safeBuffer)
+                            };
+                        });
 
                         const packPayload = {
-                            version: '2.0',
+                            version: '2.1',
                             exportDate: new Date().toISOString(),
                             folders: userFolders,
                             plates: serializablePlates
@@ -753,7 +780,7 @@
                         const fileName = `CondorEFB_DataPack_${new Date().toISOString().slice(0, 10)}.condorefb`;
                         const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
 
-                        // 1. Native File System Access API (Works on Chrome/Edge HTTPS hosted on GitHub Pages)
+                        // Native File System Access API (Desktop Chrome/Edge/Opera via HTTPS)
                         if ('showSaveFilePicker' in window) {
                             try {
                                 const handle = await window.showSaveFilePicker({
@@ -776,7 +803,7 @@
                             }
                         }
 
-                        // 2. Standard Blob Link Trigger with extended revocation (iOS/Safari HTTPS GitHub Pages)
+                        // Standard Download Link Fallback (iPadOS / Safari / iOS)
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
@@ -807,9 +834,9 @@
                 const text = await file.text();
                 try {
                     const pack = JSON.parse(text);
-                    if (!pack.folders || !pack.plates) throw new Error('Invalid format');
+                    if (!pack.folders || !pack.plates) throw new Error('Invalid Data Pack format.');
 
-                    if (confirm('Importing this Data Pack will add folders and charts to your current EFB. Continue?')) {
+                    if (confirm('Importing this Data Pack will merge folders and charts into your current EFB. Continue?')) {
                         for (let f of pack.folders) {
                             if (!userFolders.some(uf => uf.id === f.id)) {
                                 userFolders.push(f);
@@ -841,7 +868,7 @@
                         alert('Data Pack successfully imported!');
                     }
                 } catch (err) {
-                    alert('Failed to parse Data Pack file.');
+                    alert('Failed to parse Data Pack file. Ensure it is a valid .condorefb or .json backup.');
                 }
                 dataPackFileInput.value = '';
             });
