@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CondorEFB v2.1 (GitHub Pages & iPadOS Ready)</title>
+    <title>CondorEFB v2.2 (HiDPI Vector & Page-State Ready)</title>
     <!-- PDF.js CDN for client-side PDF rendering -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
@@ -349,6 +349,11 @@
             word-break: break-word;
         }
 
+        .plate-card .plate-meta-text {
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+
         .badge {
             font-size: 10px;
             padding: 2px 6px;
@@ -437,8 +442,7 @@
         canvas {
             box-shadow: 0 0 25px rgba(0, 0, 0, 0.9);
             border-radius: 4px;
-            max-width: 100%;
-            height: auto;
+            display: block;
         }
 
         .empty-state {
@@ -478,7 +482,7 @@
 
     <header>
         <div class="brand">
-            CondorEFB <span class="version-badge">v2.1</span>
+            CondorEFB <span class="version-badge">v2.2</span>
         </div>
 
         <!-- Sim Time Running Clock Display -->
@@ -563,7 +567,7 @@
                 <!-- Zoom Controls -->
                 <div class="zoom-controls">
                     <button class="btn-tool" id="zoomOut">-</button>
-                    <span id="zoomLevel" style="font-size: 11px; width: 36px; text-align: center;">120%</span>
+                    <span id="zoomLevel" style="font-size: 11px; width: 36px; text-align: center;">100%</span>
                     <button class="btn-tool" id="zoomIn">+</button>
                     <button class="btn-tool" id="deletePlate" title="Delete Chart" style="color: #ff5555; margin-left: 6px;">✕</button>
                 </div>
@@ -572,7 +576,7 @@
             <div class="canvas-container" id="canvasContainer">
                 <div class="empty-state" id="emptyState">
                     <h3>No Chart Selected</h3>
-                    <p>Select a folder on the left, then click an approach chart to open.</p>
+                    <p>Select a folder on the left, then click an approach chart or document to open.</p>
                 </div>
                 <canvas id="pdfCanvas" style="display: none;"></canvas>
             </div>
@@ -584,16 +588,15 @@
 
     <!-- Hidden Inputs -->
     <input type="file" id="fileInput" accept="application/pdf" multiple>
-    <!-- Expanded accept string to allow custom .condorefb selection on iPadOS/iOS -->
     <input type="file" id="dataPackFileInput" accept=".condorefb,.json,application/json,text/plain,*/*">
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-            // --- IndexedDB Storage Engine ---
+            // --- IndexedDB Storage Engine (v3 Upgrade for Persistent Page Memory) ---
             const DB_NAME = 'CondorEFB_DB';
-            const DB_VERSION = 2;
+            const DB_VERSION = 3;
             let db = null;
 
             function initDB() {
@@ -651,11 +654,11 @@
             let database = [];
             let userFolders = [];
             let selectedFolder = null;
-            let activePlateId = null;
+            let activePlateRecord = null;
             let currentPdf = null;
             let currentPageNum = 1;
             let totalPages = 1;
-            let currentScale = 1.2;
+            let currentScale = 1.0;
             let currentRenderTask = null;
 
             // Sim Clock State
@@ -727,7 +730,7 @@
                 }
             };
 
-            // Memory-safe Chunked Base64 Conversion
+            // Base64 Binary Helper
             function arrayBufferToBase64(buffer) {
                 let binary = '';
                 const bytes = new Uint8Array(buffer);
@@ -739,7 +742,7 @@
                 return window.btoa(binary);
             }
 
-            // --- Universal Export Engine (Patched for Detached ArrayBuffers) ---
+            // Export Data Pack Engine (Saves Page Position State)
             exportDataPackBtn.onclick = async () => {
                 if (userFolders.length === 0 && database.length === 0) {
                     alert('No folders or files available to export in Data Pack.');
@@ -750,7 +753,6 @@
                 
                 setTimeout(async () => {
                     try {
-                        // Fetch fresh, untouched ArrayBuffers straight from IndexedDB
                         const freshPlates = await dbGetAll('plates');
 
                         const serializablePlates = freshPlates.map(p => {
@@ -758,19 +760,19 @@
                                 throw new Error(`Chart "${p.name}" contains detached or corrupted buffer data.`);
                             }
                             
-                            // Clone buffer using .slice(0) to isolate binary memory
                             const safeBuffer = p.fileBuffer.slice(0);
 
                             return {
                                 id: p.id,
                                 folderId: p.folderId,
                                 name: p.name,
+                                lastPage: p.lastPage || 1,
                                 base64Data: arrayBufferToBase64(safeBuffer)
                             };
                         });
 
                         const packPayload = {
-                            version: '2.1',
+                            version: '2.2',
                             exportDate: new Date().toISOString(),
                             folders: userFolders,
                             plates: serializablePlates
@@ -780,7 +782,6 @@
                         const fileName = `CondorEFB_DataPack_${new Date().toISOString().slice(0, 10)}.condorefb`;
                         const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
 
-                        // Native File System Access API (Desktop Chrome/Edge/Opera via HTTPS)
                         if ('showSaveFilePicker' in window) {
                             try {
                                 const handle = await window.showSaveFilePicker({
@@ -803,7 +804,6 @@
                             }
                         }
 
-                        // Standard Download Link Fallback (iPadOS / Safari / iOS)
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
@@ -854,6 +854,7 @@
                                     id: p.id,
                                     folderId: p.folderId,
                                     name: p.name,
+                                    lastPage: p.lastPage || 1,
                                     fileBuffer: bytes.buffer
                                 };
 
@@ -879,7 +880,7 @@
                 tabMapView.classList.remove('active');
                 webMapFrame.style.display = 'none';
                 canvasContainer.style.display = 'flex';
-                if (activePlateId) toolbar.style.display = 'flex';
+                if (activePlateRecord) toolbar.style.display = 'flex';
                 sidebarContainer.style.display = 'flex';
             };
 
@@ -925,7 +926,7 @@
 
             initApp();
 
-            // Create Folder with Category Prompt
+            // Create Folder
             createUserFolderBtn.onclick = async () => {
                 const folderName = prompt('Enter Folder Name (e.g. Checklists, RKJK - Kunsan):', '');
                 if (!folderName || folderName.trim() === '') return;
@@ -997,7 +998,6 @@
                     </div>
                 `;
 
-                // Rename Action
                 card.querySelector('.edit-btn').onclick = async (e) => {
                     e.stopPropagation();
                     const newName = prompt('Rename folder:', folder.name);
@@ -1009,7 +1009,6 @@
                     }
                 };
 
-                // Delete Action
                 card.querySelector('.del-btn').onclick = async (e) => {
                     e.stopPropagation();
                     if (confirm(`Delete folder "${folder.name}" and all stored PDFs?`)) {
@@ -1024,7 +1023,7 @@
 
                         if (selectedFolder && selectedFolder.id === folder.id) {
                             selectedFolder = null;
-                            activePlateId = null;
+                            activePlateRecord = null;
                             currentPdf = null;
                             canvas.style.display = 'none';
                             toolbar.style.display = 'none';
@@ -1040,7 +1039,6 @@
                 foldersScrollList.appendChild(card);
             }
 
-            // Select Folder
             function selectFolder(folder) {
                 selectedFolder = folder;
                 uploadPdfBtn.style.display = 'inline-block';
@@ -1048,7 +1046,6 @@
                 renderPlatesColumn();
             }
 
-            // Render PDF List
             function renderPlatesColumn() {
                 if (!selectedFolder) {
                     platesHeaderTitle.textContent = 'Select Folder';
@@ -1074,14 +1071,18 @@
 
                 folderPlates.forEach(plate => {
                     const card = document.createElement('div');
-                    card.className = `plate-card ${activePlateId === plate.id ? 'active' : ''}`;
-                    card.innerHTML = `<div class="plate-title-text">${plate.name}</div>`;
+                    const isActive = activePlateRecord && activePlateRecord.id === plate.id;
+                    card.className = `plate-card ${isActive ? 'active' : ''}`;
+                    const lastPg = plate.lastPage || 1;
+                    card.innerHTML = `
+                        <div class="plate-title-text">${plate.name}</div>
+                        <div class="plate-meta-text">${lastPg > 1 ? `Resume Page ${lastPg}` : 'Page 1'}</div>
+                    `;
                     card.onclick = () => loadPlate(plate);
                     platesList.appendChild(card);
                 });
             }
 
-            // File Upload Listener
             uploadPdfBtn.onclick = () => selectedFolder && fileInput.click();
 
             fileInput.addEventListener('change', async (e) => {
@@ -1095,6 +1096,7 @@
                             id: Date.now() + Math.random().toString(36).substr(2, 9),
                             folderId: selectedFolder.id,
                             name: file.name.replace(/\.pdf$/i, ''),
+                            lastPage: 1,
                             fileBuffer: arrayBuffer
                         };
 
@@ -1110,9 +1112,9 @@
 
             folderSearchInput.addEventListener('input', (e) => renderLeftSidebar(e.target.value));
 
-            // Load Selected PDF
+            // Load PDF with Page-State Restoration
             async function loadPlate(plate) {
-                activePlateId = plate.id;
+                activePlateRecord = plate;
                 renderPlatesColumn();
 
                 plateTitle.textContent = `${selectedFolder.name} — ${plate.name}`;
@@ -1126,12 +1128,16 @@
                 }
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                currentPageNum = 1;
 
                 const loadingTask = pdfjsLib.getDocument({ data: plate.fileBuffer });
                 currentPdf = await loadingTask.promise;
                 totalPages = currentPdf.numPages;
                 
+                // Restore last saved page or default to 1
+                let savedPage = plate.lastPage || 1;
+                if (savedPage > totalPages) savedPage = totalPages;
+                currentPageNum = savedPage;
+
                 totalPagesText.textContent = `/ ${totalPages}`;
                 pageNumberInput.max = totalPages;
                 pageNumberInput.value = currentPageNum;
@@ -1139,7 +1145,15 @@
                 renderPage(currentPageNum);
             }
 
-            // Render PDF Page
+            // Save Page Position to State & IndexedDB
+            async function persistCurrentPage() {
+                if (!activePlateRecord) return;
+                activePlateRecord.lastPage = currentPageNum;
+                await dbPut('plates', activePlateRecord);
+                renderPlatesColumn();
+            }
+
+            // High-DPI Crisp PDF Rendering Engine
             async function renderPage(pageNum) {
                 if (!currentPdf) return;
 
@@ -1149,10 +1163,20 @@
                 }
 
                 const page = await currentPdf.getPage(pageNum);
-                const viewport = page.getViewport({ scale: currentScale });
                 
-                canvas.height = viewport.height;
+                // Device Pixel Ratio for iPad Retina Displays
+                const dpr = window.devicePixelRatio || 1;
+                
+                // Calculate Scaled Viewport
+                const viewport = page.getViewport({ scale: currentScale * dpr });
+                
+                // Internal Canvas Dimensions match High-DPI Resolution
                 canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                // Scale Down CSS Dimensions so Vectors remain Razor Sharp on Display
+                canvas.style.width = `${viewport.width / dpr}px`;
+                canvas.style.height = `${viewport.height / dpr}px`;
 
                 const renderContext = {
                     canvasContext: ctx,
@@ -1170,44 +1194,56 @@
                 zoomLevel.textContent = `${Math.round(currentScale * 100)}%`;
             }
 
-            // Page Navigation Actions
-            prevPageBtn.onclick = () => {
+            // Page Navigation Controls
+            prevPageBtn.onclick = async () => {
                 if (currentPageNum > 1) {
                     currentPageNum--;
                     pageNumberInput.value = currentPageNum;
-                    renderPage(currentPageNum);
+                    await renderPage(currentPageNum);
+                    persistCurrentPage();
                 }
             };
 
-            nextPageBtn.onclick = () => {
+            nextPageBtn.onclick = async () => {
                 if (currentPageNum < totalPages) {
                     currentPageNum++;
                     pageNumberInput.value = currentPageNum;
-                    renderPage(currentPageNum);
+                    await renderPage(currentPageNum);
+                    persistCurrentPage();
                 }
             };
 
-            pageNumberInput.addEventListener('change', (e) => {
+            pageNumberInput.addEventListener('change', async (e) => {
                 let targetPage = parseInt(e.target.value, 10);
                 if (isNaN(targetPage) || targetPage < 1) targetPage = 1;
                 if (targetPage > totalPages) targetPage = totalPages;
                 
                 currentPageNum = targetPage;
                 e.target.value = currentPageNum;
-                renderPage(currentPageNum);
+                await renderPage(currentPageNum);
+                persistCurrentPage();
             });
 
-            // Zoom Controls
-            zoomInBtn.onclick = () => { currentScale += 0.2; renderPage(currentPageNum); };
-            zoomOutBtn.onclick = () => { if (currentScale > 0.4) { currentScale -= 0.2; renderPage(currentPageNum); } };
+            // Re-render Vector Data on Zoom
+            zoomInBtn.onclick = () => { 
+                currentScale += 0.25; 
+                renderPage(currentPageNum); 
+            };
+
+            zoomOutBtn.onclick = () => { 
+                if (currentScale > 0.5) { 
+                    currentScale -= 0.25; 
+                    renderPage(currentPageNum); 
+                } 
+            };
 
             // Delete Active Chart
             deleteBtn.onclick = async () => {
-                if (!activePlateId) return;
-                await dbDelete('plates', activePlateId);
-                database = database.filter(p => p.id !== activePlateId);
+                if (!activePlateRecord) return;
+                await dbDelete('plates', activePlateRecord.id);
+                database = database.filter(p => p.id !== activePlateRecord.id);
                 
-                activePlateId = null;
+                activePlateRecord = null;
                 currentPdf = null;
                 canvas.style.display = 'none';
                 toolbar.style.display = 'none';
